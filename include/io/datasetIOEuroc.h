@@ -6,11 +6,9 @@
 #define DATASET_IO_EUROC_H
 
 #include <experimental/filesystem>
-
+#include <glog/logging.h>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
-
-#include <glog/logging.h>
 
 #include "io/datasetIO.h"
 
@@ -18,241 +16,224 @@ namespace fs = std::experimental::filesystem;
 
 namespace struct_vio {
 
-    class EurocVioDataset : public VioDataset {
-    public:
+class EurocVioDataset : public VioDataset {
+ public:
+  size_t num_cams;
 
-        size_t num_cams;
+  std::string dataset_base_path;
+  std::vector<std::string> image_folder;
+  std::string imu_path;
 
-        std::string dataset_base_path;
-        std::vector<std::string> image_folder;
-        std::string imu_path;
+  std::vector<int64_t> image_timestamps;
+  std::unordered_map<int64_t, std::string> image_path;
 
-        std::vector<int64_t> image_timestamps;
-        std::unordered_map<int64_t, std::string> image_path;
+  // vector of images for every timestamp
+  // assumes vectors size is num_cams for every timestamp with null pointers for
+  // missing frames
+  // std::unordered_map<int64_t, std::vector<ImageData>> image_data;
 
-        // vector of images for every timestamp
-        // assumes vectors size is num_cams for every timestamp with null pointers for
-        // missing frames
-        // std::unordered_map<int64_t, std::vector<ImageData>> image_data;
+  Eigen::vector<AccelData> accel_data;
+  Eigen::vector<GyroData> gyro_data;
 
-        Eigen::vector<AccelData> accel_data;
-        Eigen::vector<GyroData> gyro_data;
+  std::vector<int64_t> gt_timestamps;  // ordered gt timestamps
+  Eigen::map<double, GtData> gt_data;  // TODO: change to eigen aligned
 
-        std::vector<int64_t> gt_timestamps;       // ordered gt timestamps
-        Eigen::map<double, GtData> gt_data;            // TODO: change to eigen aligned
+ public:
+  ~EurocVioDataset(){};
 
+  size_t get_num_cams() const { return num_cams; }
 
-    public:
-        ~EurocVioDataset() {};
+  std::vector<int64_t> &get_image_timestamps() { return image_timestamps; }
 
-        size_t get_num_cams() const { return num_cams; }
+  const Eigen::vector<AccelData> &get_accel_data() const { return accel_data; }
 
-        std::vector<int64_t> &get_image_timestamps() { return image_timestamps; }
+  const Eigen::vector<GyroData> &get_gyro_data() const { return gyro_data; }
 
-        const Eigen::vector<AccelData> &get_accel_data() const { return accel_data; }
+  const std::vector<int64_t> &get_gt_timestamps() const { return gt_timestamps; }
 
-        const Eigen::vector<GyroData> &get_gyro_data() const { return gyro_data; }
+  const Eigen::map<double, GtData> &get_gt_state_data() const { return gt_data; }
 
-        const std::vector<int64_t> &get_gt_timestamps() const {
-            return gt_timestamps;
-        }
+  std::vector<ImageData> get_image_data(int64_t t_ns) {
+    std::vector<ImageData> res(num_cams);
 
-        const Eigen::map<double, GtData> &get_gt_state_data() const {
-            return gt_data;
-        }
+    for (size_t i = 0; i < num_cams; i++) {
+      std::string full_image_path = dataset_base_path + image_folder[i] + "/data/" + image_path[t_ns];
 
-        std::vector<ImageData> get_image_data(int64_t t_ns) {
-            std::vector<ImageData> res(num_cams);
+      if (file_exists(full_image_path)) {
+        cv::Mat image = cv::imread(full_image_path, -1);
+        // LOG(INFO) << image.rows << "," << image.cols;
+        res[i].image = image;
+      }
+    }
 
-            for (size_t i = 0; i < num_cams; i++) {
-                std::string full_image_path =
-                        dataset_base_path + image_folder[i] + "/data/" + image_path[t_ns];
+    return res;
+  }  // funcation get_image_data
+};
 
-                if (file_exists(full_image_path)) {
-                    cv::Mat image = cv::imread(full_image_path, -1);
-                    // LOG(INFO) << image.rows << "," << image.cols;
-                    res[i].image = image;
-                }
-            }
+class EurocIO : public DatasetIoInterface {
+ public:
+  EurocIO(){};
 
-            return res;
-        } // funcation get_image_data
-    };
+  void read(const std::string &config_path) {
+    cv::FileStorage fsSettings(config_path, cv::FileStorage::READ);
+    if (!fsSettings.isOpened()) {
+      LOG(ERROR) << "ERROR: Wrong path to settings";
+    }
 
-    class EurocIO : public DatasetIoInterface {
-    public:
-        EurocIO() {};
+    std::string data_path = fsSettings["data_path"];
 
-        void read(const std::string &config_path) {
+    LOG(INFO) << "data_path: " << data_path << std::endl;
 
-            cv::FileStorage fsSettings(config_path, cv::FileStorage::READ);
-            if (!fsSettings.isOpened()) {
-                LOG(ERROR) << "ERROR: Wrong path to settings";
-            }
+    if (!fs::exists(data_path)) {
+      LOG(ERROR) << "No dataset found in " << data_path << std::endl;
+    }
 
-            std::string data_path = fsSettings["data_path"];
+    int camera_num = fsSettings["camera_num"];
 
-            LOG(INFO) << "data_path: " << data_path << std::endl;
+    std::vector<std::string> image_names;
 
-            if (!fs::exists(data_path)) {
-                LOG(ERROR) << "No dataset found in " << data_path << std::endl;
-            }
+    for (const auto &node : fsSettings["camera_name"]) {
+      image_names.emplace_back(node);
+    }
+    LOG(INFO) << "image_names size: " << image_names.size();
 
-            int camera_num = fsSettings["camera_num"];
+    std::string imu_path = fsSettings["imu_path"];
 
-            std::vector<std::string> image_names;
+    data.reset(new EurocVioDataset);
 
-            for (const auto &node: fsSettings["camera_name"]) {
-                image_names.emplace_back(node);
-            }
-            LOG(INFO) << "image_names size: " << image_names.size();
+    data->dataset_base_path = data_path;
+    data->num_cams = camera_num;
+    data->image_folder = image_names;
 
-            std::string imu_path = fsSettings["imu_path"];
+    // 读取IMU以及camera的数据路径
+    read_image_timestamps(data_path + image_names[0] + "/");
+    read_imu_data(data_path + imu_path + "/");
 
-            data.reset(new EurocVioDataset);
+    // TODO: 读取真值
+    bool has_ground_gtruth = int(fsSettings["has_ground_truth"]);
+    if (has_ground_gtruth) {
+      std::string ground_truth_path = fsSettings["ground_truth_path"];
+      read_gt_data_state(data_path + ground_truth_path + "/");
+    }
+  }
 
-            data->dataset_base_path = data_path;
-            data->num_cams = camera_num;
-            data->image_folder = image_names;
+  void reset() { data.reset(); }
 
-            // 读取IMU以及camera的数据路径
-            read_image_timestamps(data_path + image_names[0] + "/");
-            read_imu_data(data_path + imu_path + "/");
+  VioDatasetPtr get_data() { return data; }
 
-            // TODO: 读取真值
-            bool has_ground_gtruth = int(fsSettings["has_ground_truth"]);
-            if (has_ground_gtruth) {
-                std::string ground_truth_path = fsSettings["ground_truth_path"];
-                read_gt_data_state(data_path + ground_truth_path + "/");
+ private:
+  void read_image_timestamps(const std::string &path) {
+    std::ifstream f(path + "data.csv");
+    if (!f) {
+      LOG(INFO) << "fail to open the file: " << path + "data.csv";
+    }
 
-            }
-        }
+    std::string line;
+    while (std::getline(f, line)) {
+      if (line[0] == '#') continue;
 
-        void reset() { data.reset(); }
+      std::stringstream ss(line);
+
+      char tmp;
+      int64_t t_ns;
+      std::string path;
 
-        VioDatasetPtr get_data() { return data; }
+      ss >> t_ns >> tmp >> path;
 
-    private:
-        void read_image_timestamps(const std::string &path) {
+      data->image_timestamps.emplace_back(t_ns);
+      data->image_path[t_ns] = path;
 
-            std::ifstream f(path + "data.csv");
-            if (!f) {
-                LOG(INFO) << "fail to open the file: " << path + "data.csv";
-            }
+      // LOG(INFO) << t_ns << "-->" << path;
+    }
+  }  // function read_image_timestamps
 
-            std::string line;
-            while (std::getline(f, line)) {
-                if (line[0] == '#')
-                    continue;
+  void read_imu_data(const std::string &path) {
+    data->accel_data.clear();
+    data->gyro_data.clear();
 
-                std::stringstream ss(line);
+    std::ifstream f(path + "data.csv");
+    if (!f) {
+      LOG(INFO) << "fail to open the file: " << path + "data.csv";
+    }
 
-                char tmp;
-                int64_t t_ns;
-                std::string path;
+    std::string line;
+    while (std::getline(f, line)) {
+      if (line[0] == '#') continue;
 
-                ss >> t_ns >> tmp >> path;
+      std::stringstream ss(line);
 
-                data->image_timestamps.emplace_back(t_ns);
-                data->image_path[t_ns] = path;
+      char tmp;
+      uint64_t timestamp;
+      Eigen::Vector3d gyro, accel;
 
-                // LOG(INFO) << t_ns << "-->" << path;
-            }
-        } // function read_image_timestamps
+      ss >> timestamp >> tmp >> gyro[0] >> tmp >> gyro[1] >> tmp >> gyro[2] >> tmp >> accel[0] >> tmp >> accel[1] >>
+          tmp >> accel[2];
 
-        void read_imu_data(const std::string &path) {
-            data->accel_data.clear();
-            data->gyro_data.clear();
+      data->accel_data.emplace_back();
+      data->accel_data.back().timestamp_ns = timestamp;
+      data->accel_data.back().data = accel;
 
-            std::ifstream f(path + "data.csv");
-            if (!f) {
-                LOG(INFO) << "fail to open the file: " << path + "data.csv";
-            }
+      data->gyro_data.emplace_back();
+      data->gyro_data.back().timestamp_ns = timestamp;
+      data->gyro_data.back().data = gyro;
 
-            std::string line;
-            while (std::getline(f, line)) {
-                if (line[0] == '#')
-                    continue;
+      //                LOG(INFO) << accel.transpose() << "---" << gyro.transpose();
+      //                char tmp1;
+      //                std::cin >> tmp1;
+    }
+  }
 
-                std::stringstream ss(line);
+  void read_gt_data_state(const std::string &path) {
+    data->gt_timestamps.clear();
+    data->gt_data.clear();
 
-                char tmp;
-                uint64_t timestamp;
-                Eigen::Vector3d gyro, accel;
+    std::ifstream f(path + "data.csv");
+    if (!f) {
+      LOG(INFO) << "fail to open the file: " << path + "data.csv";
+    }
 
-                ss >> timestamp >> tmp >> gyro[0] >> tmp >> gyro[1] >> tmp >> gyro[2] >>
-                   tmp >> accel[0] >> tmp >> accel[1] >> tmp >> accel[2];
+    std::string line;
+    while (std::getline(f, line)) {
+      if (line[0] == '#') continue;
 
-                data->accel_data.emplace_back();
-                data->accel_data.back().timestamp_ns = timestamp;
-                data->accel_data.back().data = accel;
+      std::stringstream ss(line);
 
-                data->gyro_data.emplace_back();
-                data->gyro_data.back().timestamp_ns = timestamp;
-                data->gyro_data.back().data = gyro;
+      char tmp;
+      uint64_t timestamp;
+      Eigen::Quaterniond q;
+      Eigen::Vector3d pos, vel, accel_bias, gyro_bias;
 
+      //                std::cout << ss.str() << std::endl;
 
-//                LOG(INFO) << accel.transpose() << "---" << gyro.transpose();
-//                char tmp1;
-//                std::cin >> tmp1;
-            }
-        }
+      ss >> timestamp >> tmp >> pos[0] >> tmp >> pos[1] >> tmp >> pos[2] >> tmp >> q.w() >> tmp >> q.x() >> tmp >>
+          q.y() >> tmp >> q.z() >> tmp >> vel[0] >> tmp >> vel[1] >> tmp >> vel[2] >> tmp >> gyro_bias[0] >> tmp >>
+          gyro_bias[1] >> tmp >> gyro_bias[2] >> tmp >> accel_bias[0] >> tmp >> accel_bias[1] >> tmp >> accel_bias[2];
 
-        void read_gt_data_state(const std::string &path) {
-            data->gt_timestamps.clear();
-            data->gt_data.clear();
+      //                std::cout << "gt: " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
+      //                std::cout << "gt: " << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << std::endl;
+      //                std::cout << "gt: " << vel[0] << " " << vel[1] << " " << vel[2] << std::endl;
+      //                std::cout << "gt: " << gyro_bias[0] << " " << gyro_bias[1] << " " << gyro_bias[2] << std::endl;
+      //                std::cout << "gt: " << accel_bias[0] << " " << accel_bias[1] << " " << accel_bias[2] <<
+      //                std::endl;
+      //
+      //                char tmp1;
+      //                std::cin >> tmp1;
 
-            std::ifstream f(path + "data.csv");
-            if (!f) {
-                LOG(INFO) << "fail to open the file: " << path + "data.csv";
-            }
+      data->gt_timestamps.emplace_back(timestamp);
 
-            std::string line;
-            while (std::getline(f, line)) {
-                if (line[0] == '#')
-                    continue;
+      GtData gt;
+      gt.rotation = q;
+      gt.position = pos;
+      gt.velocity = vel;
+      gt.bias_gyr = gyro_bias;
+      gt.bias_acc = accel_bias;
+      data->gt_data[timestamp * 1e-9] = gt;
+    }
+  }
 
-                std::stringstream ss(line);
+  std::shared_ptr<EurocVioDataset> data;
+};
 
-                char tmp;
-                uint64_t timestamp;
-                Eigen::Quaterniond q;
-                Eigen::Vector3d pos, vel, accel_bias, gyro_bias;
+}  // namespace struct_vio
 
-//                std::cout << ss.str() << std::endl;
-
-                ss >> timestamp >> tmp >> pos[0] >> tmp >> pos[1] >> tmp >> pos[2] >>
-                   tmp >> q.w() >> tmp >> q.x() >> tmp >> q.y() >> tmp >> q.z() >> tmp >>
-                   vel[0] >> tmp >> vel[1] >> tmp >> vel[2] >> tmp >> gyro_bias[0] >>
-                   tmp >> gyro_bias[1] >> tmp >> gyro_bias[2] >> tmp >> accel_bias[0] >>
-                   tmp >> accel_bias[1] >> tmp >> accel_bias[2];
-
-//                std::cout << "gt: " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
-//                std::cout << "gt: " << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << std::endl;
-//                std::cout << "gt: " << vel[0] << " " << vel[1] << " " << vel[2] << std::endl;
-//                std::cout << "gt: " << gyro_bias[0] << " " << gyro_bias[1] << " " << gyro_bias[2] << std::endl;
-//                std::cout << "gt: " << accel_bias[0] << " " << accel_bias[1] << " " << accel_bias[2] << std::endl;
-//
-//                char tmp1;
-//                std::cin >> tmp1;
-
-                data->gt_timestamps.emplace_back(timestamp);
-
-                GtData gt;
-                gt.rotation = q;
-                gt.position = pos;
-                gt.velocity = vel;
-                gt.bias_gyr = gyro_bias;
-                gt.bias_acc = accel_bias;
-                data->gt_data[timestamp * 1e-9] = gt;
-            }
-        }
-
-
-        std::shared_ptr<EurocVioDataset> data;
-
-    };
-
-} // namespace struct_vio
-
-#endif // DATASET_IO_EUROC_H
+#endif  // DATASET_IO_EUROC_H

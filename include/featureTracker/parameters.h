@@ -2,14 +2,15 @@
 
 // #include <ros/ros.h>
 #include <vector>
+
 #include <eigen3/Eigen/Dense>
 // #include <opencv2/opencv.hpp>
 // #include <opencv2/core/eigen.hpp>
 #include <fstream>
 
-//feature tracker
-// extern int ROW;
-// extern int COL;
+// feature tracker
+//  extern int ROW;
+//  extern int COL;
 const int NUM_OF_CAM = 1;
 
 extern int FOCAL_LENGTH;
@@ -30,7 +31,7 @@ extern int EQUALIZE;
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
-//estimator
+// estimator
 
 // const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
@@ -66,26 +67,8 @@ extern double ROW, COL;
 
 void readParameters(std::string config_file);
 
-enum SIZE_PARAMETERIZATION
-{
-    SIZE_POSE = 6,
-    SIZE_SPEEDBIAS = 9,
-    SIZE_FEATURE = 3
-};
+enum SIZE_PARAMETERIZATION { SIZE_POSE = 6, SIZE_SPEEDBIAS = 9, SIZE_FEATURE = 3 };
 
-enum StateOrder
-{
-    O_P = 0,
-    O_R = 3,
-    O_V = 6,
-    O_BA = 9,
-    O_BG = 12
-};
+enum StateOrder { O_P = 0, O_R = 3, O_V = 6, O_BA = 9, O_BG = 12 };
 
-enum NoiseOrder
-{
-    O_AN = 0,
-    O_GN = 3,
-    O_AW = 6,
-    O_GW = 9
-};
+enum NoiseOrder { O_AN = 0, O_GN = 3, O_AW = 6, O_GW = 9 };

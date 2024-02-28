@@ -31,8 +31,8 @@
 
 #include "initMethod/polynomial.h"
 
-#include <glog/logging.h>
 #include <Eigen/Eigenvalues>
+#include <glog/logging.h>
 
 namespace {
 
@@ -60,8 +60,7 @@ Eigen::VectorXd RemoveTrailingZeros(const Eigen::VectorXd& coeffs) {
 
 }  // namespace
 
-bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs,
-                               Eigen::VectorXd* real, Eigen::VectorXd* imag) {
+bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag) {
   CHECK_EQ(coeffs.size(), 2);
 
   if (coeffs(0) == 0) {
@@ -81,9 +80,7 @@ bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs,
   return true;
 }
 
-bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs,
-                                  Eigen::VectorXd* real,
-                                  Eigen::VectorXd* imag) {
+bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag) {
   CHECK_EQ(coeffs.size(), 3);
 
   const double a = coeffs(0);
@@ -138,9 +135,7 @@ bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs,
   return true;
 }
 
-bool FindPolynomialRootsDurandKerner(const Eigen::VectorXd& coeffs_all,
-                                     Eigen::VectorXd* real,
-                                     Eigen::VectorXd* imag) {
+bool FindPolynomialRootsDurandKerner(const Eigen::VectorXd& coeffs_all, Eigen::VectorXd* real, Eigen::VectorXd* imag) {
   CHECK_GE(coeffs_all.size(), 2);
 
   const Eigen::VectorXd coeffs = RemoveLeadingZeros(coeffs_all);
@@ -179,10 +174,8 @@ bool FindPolynomialRootsDurandKerner(const Eigen::VectorXd& coeffs_all,
       }
       const std::complex<double> root_i_change = numerator / denominator;
       roots(i) = root_i - root_i_change;
-      max_root_change =
-          std::max(max_root_change, std::abs(root_i_change.real()));
-      max_root_change =
-          std::max(max_root_change, std::abs(root_i_change.imag()));
+      max_root_change = std::max(max_root_change, std::abs(root_i_change.real()));
+      max_root_change = std::max(max_root_change, std::abs(root_i_change.imag()));
     }
 
     // Break, if roots do not change anymore.
@@ -251,8 +244,7 @@ bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
   }
 
   // If there are trailing zeros, we must add zero as a solution.
-  const int effective_degree =
-      coeffs.size() - 1 < degree ? coeffs.size() : coeffs.size() - 1;
+  const int effective_degree = coeffs.size() - 1 < degree ? coeffs.size() : coeffs.size() - 1;
 
   if (real != nullptr) {
     real->resize(effective_degree);
@@ -272,20 +264,19 @@ bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
   return true;
 }
 
+Eigen::VectorXd real_roots(const Eigen::VectorXd& real, const Eigen::VectorXd& imag) {
+  CHECK_EQ(real.size(), imag.size());
 
-Eigen::VectorXd real_roots(const Eigen::VectorXd &real, const Eigen::VectorXd &imag) {
-    CHECK_EQ(real.size(), imag.size());
+  Eigen::VectorXd roots(real.size());
 
-    Eigen::VectorXd roots(real.size());
-
-    Eigen::VectorXd::Index j = 0;
-    for (Eigen::VectorXd::Index i = 0; i < real.size(); ++i) {
-        if (!imag(i)) {
-            roots(j) = real(i);
-            ++j;
-        }
+  Eigen::VectorXd::Index j = 0;
+  for (Eigen::VectorXd::Index i = 0; i < real.size(); ++i) {
+    if (!imag(i)) {
+      roots(j) = real(i);
+      ++j;
     }
+  }
 
-    roots.conservativeResize(j);
-    return roots;
+  roots.conservativeResize(j);
+  return roots;
 }

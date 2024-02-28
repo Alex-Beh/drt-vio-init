@@ -22,8 +22,7 @@ namespace Sophus {
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
-                             const Eigen::MatrixBase<Derived2> &J_phi) {
+inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_phi) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -31,8 +30,7 @@ inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
@@ -62,8 +60,7 @@ inline void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 /// @param[in] phi (3x1 vector)
 /// @param[out] J_phi (3x3 matrix)
 template <typename Derived1, typename Derived2>
-inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
-                                const Eigen::MatrixBase<Derived2> &J_phi) {
+inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_phi) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -71,8 +68,7 @@ inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_phi);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Eigen::Matrix<Scalar, 3, 3> phi_hat = Sophus::SO3<Scalar>::hat(phi);
@@ -92,8 +88,7 @@ inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 
     if (phi_norm < M_PI - Sophus::Constants<Scalar>::epsilonSqrt()) {
       // regular case for range (0,pi)
-      J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) /
-                                           (2 * phi_norm * std::sin(phi_norm)));
+      J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
     } else {
       // 0th-order Taylor expansion around pi
       J += phi_hat2 / (M_PI * M_PI);
@@ -104,5 +99,5 @@ inline void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
   }
 }
 
-}
+}  // namespace Sophus
 #endif /* EXT_UTILS_HPP */

@@ -7,88 +7,84 @@
 
 #include <string>
 #include <unordered_map>
+
 #include <glog/logging.h>
 #include <pangolin/pangolin.h>
 
-#include "utils/eigenTypes.h"
-#include "utils/ticToc.h"
 #include "IMU/basicTypes.hpp"
 #include "IMU/imuPreintegrated.hpp"
 #include "featureManager.h"
-#include "initMethod/optimization.hpp"
 #include "featureTracker/parameters.h"
+#include "initMethod/optimization.hpp"
+#include "utils/eigenTypes.h"
+#include "utils/ticToc.h"
 
 namespace DRT {
 
-    using namespace Eigen;
-    using namespace std;
+using namespace Eigen;
+using namespace std;
 
-    class drtVioInit {
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+class drtVioInit {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-        drtVioInit(const Eigen::Matrix3d &Rbc, const Eigen::Vector3d &tbc);
+  drtVioInit(const Eigen::Matrix3d &Rbc, const Eigen::Vector3d &tbc);
 
-        virtual ~drtVioInit() = default;
+  virtual ~drtVioInit() = default;
 
-        virtual bool process() = 0;
+  virtual bool process() = 0;
 
-        bool gravityRefine(const Eigen::MatrixXd &M,
-                           const Eigen::VectorXd &m,
-                           double Q,
-                           double gravity_mag,
-                           Eigen::VectorXd &rhs);
+  bool gravityRefine(const Eigen::MatrixXd &M,
+                     const Eigen::VectorXd &m,
+                     double Q,
+                     double gravity_mag,
+                     Eigen::VectorXd &rhs);
 
+  // 用于标定gyr bias
+  bool gyroBiasEstimator();
 
-        // 用于标定gyr bias
-        bool gyroBiasEstimator();
+  bool addFeatureCheckParallax(TimeFrameId frame_id, const FeatureTrackerResulst &image, double td);
 
-        bool addFeatureCheckParallax(TimeFrameId frame_id, const FeatureTrackerResulst &image, double td);
+  double compensatedParallax2(const Eigen::Vector3d &p_i, const Eigen::Vector3d &p_j);
 
+  void addImuMeasure(const vio::IMUPreintegrated &imuData);
 
-        double compensatedParallax2(const Eigen::Vector3d &p_i, const Eigen::Vector3d &p_j);
+  void recomputeFrameId();
 
-        void addImuMeasure(const vio::IMUPreintegrated &imuData);
+  bool checkAccError();
 
-        void recomputeFrameId();
+  inline Eigen::Matrix3d cross_product_matrix(const Eigen::Vector3d &x) {
+    Eigen::Matrix3d X;
+    X << 0, -x(2), x(1), x(2), 0, -x(0), -x(1), x(0), 0;
+    return X;
+  }
 
-        bool checkAccError();
+  using Ptr = std::shared_ptr<drtVioInit>;
 
-        inline Eigen::Matrix3d cross_product_matrix(const Eigen::Vector3d &x) {
-            Eigen::Matrix3d X;
-            X << 0, -x(2), x(1),
-                    x(2), 0, -x(0),
-                    -x(1), x(0), 0;
-            return X;
-        }
+ public:
+  std::set<double> local_active_frames;
+  std::map<int, TimeFrameId> int_frameid2_time_frameid;
+  std::map<TimeFrameId, int> time_frameid2_int_frameid;
+  Eigen::aligned_map<TimeFrameId, Eigen::Matrix3d> frame_rot;
 
-        using Ptr = std::shared_ptr<drtVioInit>;
-    public:
+  Eigen::Vector3d biasg;
+  Eigen::Vector3d biasa;
+  Eigen::Vector3d gravity;
+  double avg_observation;
+  std::vector<Eigen::Vector3d> velocity;
+  std::vector<Eigen::Vector3d> position;
+  std::vector<Eigen::Matrix3d> rotation;
 
-        std::set<double> local_active_frames;
-        std::map<int, TimeFrameId> int_frameid2_time_frameid;
-        std::map<TimeFrameId, int> time_frameid2_int_frameid;
-        Eigen::aligned_map<TimeFrameId, Eigen::Matrix3d> frame_rot;
+  Eigen::Matrix3d Rbc_;
+  Eigen::Vector3d pbc_;
 
-        Eigen::Vector3d biasg;
-        Eigen::Vector3d biasa;
-        Eigen::Vector3d gravity;
-        double avg_observation;
-        std::vector<Eigen::Vector3d> velocity;
-        std::vector<Eigen::Vector3d> position;
-        std::vector<Eigen::Matrix3d> rotation;
+  Eigen::aligned_unordered_map<FeatureID, SFMFeature> SFMConstruct;
+  Eigen::aligned_vector<vio::IMUPreintegrated> imu_meas;
 
-        Eigen::Matrix3d Rbc_;
-        Eigen::Vector3d pbc_;
+  TimeFrameId last_image_t_ns;
 
-        Eigen::aligned_unordered_map<FeatureID, SFMFeature>
-                SFMConstruct;
-        Eigen::aligned_vector<vio::IMUPreintegrated> imu_meas;
+  int frame_num_;
+};
+}  // namespace DRT
 
-        TimeFrameId last_image_t_ns;
-
-        int frame_num_;
-    };
-}
-
-#endif //VIO_INIT_SYS_ROBUST_INITIALIZE_VIO_H
+#endif  // VIO_INIT_SYS_ROBUST_INITIALIZE_VIO_H

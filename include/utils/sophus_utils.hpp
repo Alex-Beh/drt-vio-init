@@ -5,33 +5,31 @@
 #ifndef SOPHUS_UTILS_HPP
 #define SOPHUS_UTILS_HPP
 
-#include <sophus/se2.hpp>
-#include <sophus/se3.hpp>
-
-#include <sophus/sim2.hpp>
-
 #include <deque>
 #include <map>
 #include <unordered_map>
 #include <vector>
+
+#include <sophus/se2.hpp>
+#include <sophus/se3.hpp>
+#include <sophus/sim2.hpp>
 
 namespace Eigen {
 
 template <typename T>
 using vector = std::vector<T, Eigen::aligned_allocator<T>>;
 
-template <typename T> using deque = std::deque<T, Eigen::aligned_allocator<T>>;
+template <typename T>
+using deque = std::deque<T, Eigen::aligned_allocator<T>>;
 
 template <typename K, typename V>
-using map = std::map<K, V, std::less<K>,
-                     Eigen::aligned_allocator<std::pair<K const, V>>>;
+using map = std::map<K, V, std::less<K>, Eigen::aligned_allocator<std::pair<K const, V>>>;
 
 template <typename K, typename V>
 using unordered_map =
-    std::unordered_map<K, V, std::hash<K>, std::equal_to<K>,
-                       Eigen::aligned_allocator<std::pair<K const, V>>>;
+    std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, Eigen::aligned_allocator<std::pair<K const, V>>>;
 
-} // namespace Eigen
+}  // namespace Eigen
 
 namespace Sophus {
 
@@ -45,21 +43,18 @@ inline static typename SE3<Scalar>::Tangent logd(const SE3<Scalar> &se3) {
 }
 
 template <typename Derived>
-inline static SE3<typename Derived::Scalar>
-expd(const Eigen::MatrixBase<Derived> &upsilon_omega) {
+inline static SE3<typename Derived::Scalar> expd(const Eigen::MatrixBase<Derived> &upsilon_omega) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived, 6);
 
   using Scalar = typename Derived::Scalar;
 
-  return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.template tail<3>()),
-                     upsilon_omega.template head<3>());
+  return SE3<Scalar>(SO3<Scalar>::exp(upsilon_omega.template tail<3>()), upsilon_omega.template head<3>());
 }
 
 // exp(phi+e) ~= exp(phi)*exp(J*e)
 template <typename Derived1, typename Derived2>
-void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
-                      const Eigen::MatrixBase<Derived2> &J_const) {
+void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -67,8 +62,7 @@ void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Scalar phi_norm = std::sqrt(phi_norm2);
@@ -87,8 +81,7 @@ void rightJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 
 // log(exp(phi)exp(e)) ~= phi + J*e
 template <typename Derived1, typename Derived2>
-void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
-                         const Eigen::MatrixBase<Derived2> &J_const) {
+void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -96,8 +89,7 @@ void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Scalar phi_norm = std::sqrt(phi_norm2);
@@ -109,15 +101,13 @@ void rightJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
     Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
     J += phi_hat / 2;
-    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) /
-                                         (2 * phi_norm * std::sin(phi_norm)));
+    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
   }
 }
 
 // exp(phi+e) ~= exp(J*e)*exp(phi)
 template <typename Derived1, typename Derived2>
-void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
-                     const Eigen::MatrixBase<Derived2> &J_const) {
+void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -125,8 +115,7 @@ void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Scalar phi_norm = std::sqrt(phi_norm2);
@@ -145,8 +134,7 @@ void leftJacobianSO3(const Eigen::MatrixBase<Derived1> &phi,
 
 // log(exp(e)*exp(phi)) ~= phi + J*e
 template <typename Derived1, typename Derived2>
-void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
-                        const Eigen::MatrixBase<Derived2> &J_const) {
+void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 3);
@@ -154,8 +142,7 @@ void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   Scalar phi_norm2 = phi.squaredNorm();
   Scalar phi_norm = std::sqrt(phi_norm2);
@@ -167,15 +154,13 @@ void leftJacobianInvSO3(const Eigen::MatrixBase<Derived1> &phi,
     Eigen::Matrix<Scalar, 3, 3> phi_hat2 = phi_hat * phi_hat;
 
     J -= phi_hat / 2;
-    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) /
-                                         (2 * phi_norm * std::sin(phi_norm)));
+    J += phi_hat2 * (1 / phi_norm2 - (1 + std::cos(phi_norm)) / (2 * phi_norm * std::sin(phi_norm)));
   }
 }
 
 // expd(phi+e) ~= expd(phi)*expd(J*e)
 template <typename Derived1, typename Derived2>
-void rightJacobianSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi,
-                               const Eigen::MatrixBase<Derived2> &J_const) {
+void rightJacobianSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
@@ -183,21 +168,18 @@ void rightJacobianSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   J.setZero();
 
   Eigen::Matrix<Scalar, 3, 1> omega = phi.template tail<3>();
   rightJacobianSO3(omega, J.template bottomRightCorner<3, 3>());
-  J.template topLeftCorner<3, 3>() =
-      Sophus::SO3<Scalar>::exp(omega).inverse().matrix();
+  J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).inverse().matrix();
 }
 
 // logd(expd(phi)expd(e)) ~= phi + J*e
 template <typename Derived1, typename Derived2>
-void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi,
-                                  const Eigen::MatrixBase<Derived2> &J_const) {
+void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi, const Eigen::MatrixBase<Derived2> &J_const) {
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived1);
   EIGEN_STATIC_ASSERT_FIXED_SIZE(Derived2);
   EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Derived1, 6);
@@ -205,8 +187,7 @@ void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi,
 
   using Scalar = typename Derived1::Scalar;
 
-  Eigen::MatrixBase<Derived2> &J =
-      const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
+  Eigen::MatrixBase<Derived2> &J = const_cast<Eigen::MatrixBase<Derived2> &>(J_const);
 
   J.setZero();
 
@@ -215,6 +196,6 @@ void rightJacobianInvSE3Decoupled(const Eigen::MatrixBase<Derived1> &phi,
   J.template topLeftCorner<3, 3>() = Sophus::SO3<Scalar>::exp(omega).matrix();
 }
 
-} // namespace Sophus
+}  // namespace Sophus
 
-#endif // SOPHUS_UTILS_HPP
+#endif  // SOPHUS_UTILS_HPP
